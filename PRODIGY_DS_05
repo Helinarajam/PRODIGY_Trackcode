@@ -1,0 +1,43 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import folium
+from folium.plugins import HeatMap
+
+# Load your dataset
+# Make sure your CSV has columns like: 'Date', 'Time', 'Weather', 'Road_Condition', 'Latitude', 'Longitude'
+df = pd.read_csv('accidents.csv', parse_dates=['Date'])
+
+# --- Preprocessing ---
+df['Hour'] = pd.to_datetime(df['Time'], errors='coerce').dt.hour
+df = df.dropna(subset=['Latitude', 'Longitude'])
+
+# --- Analysis 1: Accidents by Weather and Road Condition ---
+plt.figure(figsize=(12, 6))
+sns.countplot(data=df, x='Weather', hue='Road_Condition', order=df['Weather'].value_counts().index)
+plt.title('Accidents by Weather and Road Condition')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+
+# --- Analysis 2: Accidents by Time of Day ---
+plt.figure(figsize=(10, 5))
+sns.histplot(df['Hour'].dropna(), bins=24, kde=False)
+plt.title('Accidents by Hour of Day')
+plt.xlabel('Hour')
+plt.ylabel('Number of Accidents')
+plt.xticks(range(0, 24))
+plt.grid(True)
+plt.show()
+
+# --- Mapping Hotspots with Folium ---
+map_center = [df['Latitude'].mean(), df['Longitude'].mean()]
+accident_map = folium.Map(location=map_center, zoom_start=11)
+
+heat_data = [[row['Latitude'], row['Longitude']] for index, row in df.iterrows()]
+HeatMap(heat_data).add_to(accident_map)
+
+# Save the map to an HTML file
+accident_map.save("accident_hotspots.html")
+
+print("Accident hotspot map saved as 'accident_hotspots.html'")
