@@ -1,0 +1,116 @@
+# Import libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load the dataset
+df = pd.read_csv("/Titanic-Dataset.csv")  # Or use the full path if needed
+
+# -------------------------------
+# 1. DATA CLEANING
+# -------------------------------
+
+# Check for missing values
+print("Missing values before cleaning:\n", df.isnull().sum())
+
+# Fill missing Age with median
+df['Age'].fillna(df['Age'].median(), inplace=True)
+
+# Fill missing Embarked with mode
+df['Embarked'].fillna(df['Embarked'].mode()[0], inplace=True)
+
+# Drop Cabin (too many missing values)
+df.drop(columns=['Cabin'], inplace=True)
+
+# Convert categorical variables
+df['Sex'] = df['Sex'].astype('category')
+df['Embarked'] = df['Embarked'].astype('category')
+df['Pclass'] = df['Pclass'].astype('category')
+
+# -------------------------------
+# 2. UNIVARIATE ANALYSIS
+# -------------------------------
+
+plt.figure(figsize=(15, 10))
+
+# Survival count
+plt.subplot(2, 3, 1)
+sns.countplot(x='Survived', data=df)
+plt.title("Survival Count")
+
+# Sex distribution
+plt.subplot(2, 3, 2)
+sns.countplot(x='Sex', data=df)
+plt.title("Sex Distribution")
+
+# Passenger class
+plt.subplot(2, 3, 3)
+sns.countplot(x='Pclass', data=df)
+plt.title("Passenger Class Distribution")
+
+# Age histogram
+plt.subplot(2, 3, 4)
+sns.histplot(df['Age'], bins=30, kde=True)
+plt.title("Age Distribution")
+
+# Fare distribution
+plt.subplot(2, 3, 5)
+sns.histplot(df['Fare'], bins=30, kde=True)
+plt.title("Fare Distribution")
+
+# Embarked
+plt.subplot(2, 3, 6)
+sns.countplot(x='Embarked', data=df)
+plt.title("Embarked Port Distribution")
+
+plt.tight_layout()
+plt.show()
+
+# -------------------------------
+# 3. BIVARIATE ANALYSIS
+# -------------------------------
+
+plt.figure(figsize=(16, 12))
+
+# Survival by Sex
+plt.subplot(2, 2, 1)
+sns.countplot(x='Sex', hue='Survived', data=df)
+plt.title("Survival by Sex")
+
+# Survival by Class
+plt.subplot(2, 2, 2)
+sns.countplot(x='Pclass', hue='Survived', data=df)
+plt.title("Survival by Class")
+
+# Age vs Survival
+plt.subplot(2, 2, 3)
+sns.histplot(data=df, x='Age', hue='Survived', bins=30, kde=True)
+plt.title("Age Distribution by Survival")
+
+# Embarked vs Survival
+plt.subplot(2, 2, 4)
+sns.countplot(x='Embarked', hue='Survived', data=df)
+plt.title("Survival by Embarked Port")
+
+plt.tight_layout()
+plt.show()
+
+# -------------------------------
+# 4. CORRELATION ANALYSIS
+# -------------------------------
+
+# Encode categorical columns for correlation
+df_corr = df.copy()
+df_corr['Sex'] = df_corr['Sex'].cat.codes
+df_corr['Embarked'] = df_corr['Embarked'].cat.codes
+df_corr['Pclass'] = df_corr['Pclass'].cat.codes
+
+# Select only numeric columns for correlation calculation
+df_corr_numeric = df_corr.select_dtypes(include='number')
+
+# Correlation heatmap
+plt.figure(figsize=(10, 8))
+# Calculate correlation on the numeric subset
+sns.heatmap(df_corr_numeric.corr(), annot=True, cmap='coolwarm', fmt='.2f')
+plt.title("Correlation Heatmap")
+plt.show()
