@@ -1,0 +1,83 @@
+!pip install vaderSentiment
+!pip install matplotlib-venn
+!apt-get -qq install -y libfluidsynth1
+!pip install vaderSentiment # Install vaderSentiment
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import nltk
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer # Import the class
+from wordcloud import WordCloud, STOPWORDS
+
+nltk.download('vader_lexicon')
+
+
+try:
+    df_reddit = pd.read_csv('/content/Reddit_Data.csv')
+    df_twitter = pd.read_csv('/content/Twitter_Data.csv')
+
+    if 'clean_comment' in df_reddit.columns:
+        df_reddit = df_reddit.rename(columns={'clean_comment': 'text'})
+    if 'clean_text' in df_twitter.columns:
+        df_twitter = df_twitter.rename(columns={'clean_text': 'text'})
+  
+    df = pd.concat([df_reddit, df_twitter], ignore_index=True)
+except FileNotFoundError:
+    print("Make sure the CSV files are in the correct path.")
+
+    pass
+
+df = df.dropna(subset=['text']).reset_index(drop=True)
+
+# 2️⃣ Initialize VADER
+sid = SentimentIntensityAnalyzer()
+
+# 3️⃣ Compute sentiment scores
+df[['neg', 'neu', 'pos', 'compound']] = pd.DataFrame(
+    df['text'].apply(lambda t: sid.polarity_scores(t)).tolist(),
+    index=df.index
+)
+
+# 4️⃣ Label sentiment based on compound
+def label_sentiment(c):
+    if c >= 0.05: return 'positive'
+    if c <= -0.05: return 'negative'
+    return 'neutral'
+
+df['sentiment'] = df['compound'].apply(label_sentiment)
+
+if 'timestamp' in df.columns:
+    df['timestamp'] = pd.to_datetime(df['timestamp']) 
+    df.set_index('timestamp', inplace=True)
+    # 5️⃣ Resample sentiment over time (daily avg)
+    daily = df['compound'].resample('D').mean().dropna()
+
+    # 6️⃣ Plot trends 📈
+    plt.figure(figsize=(12,6))
+    sns.lineplot(x=daily.index, y=daily.values)
+    plt.title('Daily Average Sentiment (VADER compound)')
+    plt.xlabel('Date'); plt.ylabel('Avg sentiment score (-1 to +1)')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+else:
+    print("Warning: 'timestamp' column not found. Skipping time series analysis.")
+
+# 7️⃣ Distribution of sentiment labels
+plt.figure(figsize=(6,4))
+sns.countplot(data=df, x='sentiment', order=['positive','neutral','negative'])
+plt.title('Sentiment Distribution')
+plt.show()
+
+# 8️⃣ WordClouds: discover common words by sentiment
+stop = set(STOPWORDS) | {'https', 'co', 'RT'}
+for mood in ['positive', 'negative']:
+    text_blob = ' '.join(df[df['sentiment'] == mood]['text'])
+    wc = WordCloud(width=800, height=400, background_color='white',
+                   stopwords=stop, max_words=100).generate(text_blob)
+    plt.figure(figsize=(10,5))
+    plt.imshow(wc, interpolation='bilinear')
+    plt.axis('off')
+    plt.title(f"WordCloud – {mood.title()} Posts")
+    plt.show()
